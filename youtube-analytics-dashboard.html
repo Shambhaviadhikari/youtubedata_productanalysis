@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veritasium Analytics</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+:root{
+  /* Tableau-faithful palette */
+  --t-sidebar:   #1B1F2B;
+  --t-sidebar2:  #252B3A;
+  --t-icon-bar:  #2C3347;
+  --t-topbar:    #2563C8;   /* Tableau's signature blue header */
+  --t-topbar2:   #1A4FAA;
+  --t-canvas:    #F0F0F0;   /* Tableau's worksheet gray background */
+  --t-white:     #FFFFFF;
+  --t-card:      #FFFFFF;
+  --t-border:    #D0D0D0;
+  --t-border2:   #E4E4E4;
+  --t-ink:       #1A1A1A;
+  --t-ink2:      #444444;
+  --t-ink3:      #767676;
+  --t-ink4:      #AAAAAA;
+  /* Tableau chart colors */
+  --t-blue:      #4E79A7;
+  --t-orange:    #F28E2B;
+  --t-red:       #E15759;
+  --t-teal:      #76B7B2;
+  --t-green:     #59A14F;
+  --t-yellow:    #EDC948;
+  --t-purple:    #B07AA1;
+  --t-pink:      #FF9DA7;
+  /* Status */
+  --real-bg:     #EBF5EA;
+  --real-fg:     #2E7D32;
+  --est-bg:      #FFF3CD;
+  --est-fg:      #856404;
+  /* Sizes */
+  --icon-w:      48px;
+  --nav-w:       200px;
+  --top-h:       40px;
+  --ff:'Bai Jamjuree',sans-serif;
+  --fm:'JetBrains Mono',monospace;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--t-canvas);font-family:var(--ff);color:var(--t-ink);display:flex;flex-direction:column}
+
+/* TOPBAR - Tableau blue */
+.topbar{
+  height:var(--top-h);background:var(--t-topbar);
+  display:flex;align-items:center;padding:0 0 0 var(--icon-w);
+  flex-shrink:0;border-bottom:2px solid var(--t-topbar2);
+  z-index:200;position:relative;
+}
+.tb-app-name{font-size:13px;font-weight:600;color:#fff;padding:0 16px;border-right:1px solid rgba(255,255,255,.2);letter-spacing:.2px}
+.tb-breadcrumb{display:flex;align-items:center;gap:6px;padding:0 14px;font-size:12px;color:rgba(255,255,255,.7)}
+.tb-breadcrumb span{color:rgba(255,255,255,.4)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:0;padding-right:8px}
+.tb-chip{font-size:9px;font-weight:600;padding:3px 9px;font-family:var(--fm);letter-spacing:.3px;border-radius:2px;margin-left:6px}
+.tb-chip-r{background:rgba(89,161,79,.25);color:#A8E09A;border:1px solid rgba(89,161,79,.35)}
+.tb-chip-e{background:rgba(237,201,72,.2);color:#F5D76E;border:1px solid rgba(237,201,72,.3)}
+.tb-meta{font-size:10px;color:rgba(255,255,255,.35);font-family:var(--fm);padding-left:10px;border-left:1px solid rgba(255,255,255,.15);margin-left:8px}
+
+/* BODY LAYOUT */
+.body-wrap{display:flex;flex:1;overflow:hidden}
+
+/* ICON SIDEBAR (leftmost thin strip) */
+.icon-bar{
+  width:var(--icon-w);background:var(--t-sidebar);
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:2px;flex-shrink:0;z-index:100;
+}
+.ib-btn{
+  width:36px;height:36px;border-radius:4px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;cursor:pointer;transition:background .12s;color:rgba(255,255,255,.45);
+  border:none;background:transparent;
+}
+.ib-btn:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8)}
+.ib-btn.on{background:var(--t-topbar);color:#fff}
+.ib-btn svg{width:16px;height:16px}
+.ib-btn span{font-size:7px;font-family:var(--fm);letter-spacing:.2px}
+.ib-sep{width:28px;height:1px;background:rgba(255,255,255,.1);margin:4px 0}
+
+/* NAV PANEL */
+.nav-panel{
+  width:var(--nav-w);background:var(--t-sidebar2);
+  display:flex;flex-direction:column;flex-shrink:0;
+  border-right:1px solid rgba(255,255,255,.06);overflow-y:auto;
+}
+.nav-panel::-webkit-scrollbar{width:3px}
+.nav-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
+.nav-header{padding:14px 14px 8px;font-size:9px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,255,255,.25);font-family:var(--fm)}
+.nav-item{
+  display:flex;align-items:center;gap:9px;padding:8px 14px;
+  font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .1s;
+  border-left:3px solid transparent;
+}
+.nav-item svg{width:13px;height:13px;flex-shrink:0;opacity:.6}
+.nav-item:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.8)}
+.nav-item.on{background:rgba(37,99,200,.25);color:#fff;border-left-color:var(--t-orange);font-weight:600}
+.nav-item.on svg{opacity:1}
+.nav-sep{height:1px;background:rgba(255,255,255,.07);margin:6px 14px}
+.nav-footer{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.07)}
+.nav-status{display:flex;align-items:center;gap:6px;font-size:9px;color:rgba(255,255,255,.25);font-family:var(--fm)}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:#4CAF50;flex-shrink:0}
+
+/* MAIN CANVAS - Tableau worksheet area */
+.canvas{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  background:var(--t-canvas);padding:12px;
+}
+.canvas::-webkit-scrollbar{width:8px}
+.canvas::-webkit-scrollbar-track{background:var(--t-canvas)}
+.canvas::-webkit-scrollbar-thumb{background:var(--t-border);border-radius:4px}
+.canvas::-webkit-scrollbar-thumb:hover{background:#aaa}
+
+/* PAGE */
+.pg{display:none;animation:fadein .15s ease}
+.pg.on{display:block}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* TABLEAU SHEET HEADER BAR */
+.sheet-bar{
+  background:var(--t-white);border:1px solid var(--t-border);
+  border-bottom:3px solid var(--t-topbar);
+  padding:10px 16px 8px;margin-bottom:10px;
+  display:flex;align-items:flex-end;justify-content:space-between;
+}
+.sheet-title{font-size:15px;font-weight:700;color:var(--t-ink);letter-spacing:-.2px}
+.sheet-sub{font-size:11px;color:var(--t-ink3);margin-top:2px}
+.sheet-tags{display:flex;align-items:center;gap:6px}
+.src-tag{font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;font-family:var(--fm);letter-spacing:.3px}
+.src-r{background:var(--real-bg);color:var(--real-fg)}
+.src-e{background:var(--est-bg);color:var(--est-fg)}
+.src-m{background:#EDE9FE;color:#5B21B6}
+
+/* KPI ROW - Tableau summary bar style */
+.kpi-strip{display:flex;gap:8px;margin-bottom:10px}
+.kpi{
+  background:var(--t-white);border:1px solid var(--t-border);flex:1;
+  padding:10px 14px;position:relative;overflow:hidden;
+}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--t-blue)}
+.kpi.k-orange::after{background:var(--t-orange)}
+.kpi.k-red::after{background:var(--t-red)}
+.kpi.k-green::after{background:var(--t-green)}
+.kpi.k-teal::after{background:var(--t-teal)}
+.kpi.k-yellow::after{background:var(--t-yellow)}
+.kpi.k-purple::after{background:var(--t-purple)}
+.kpi-src{position:absolute;top:8px;right:8px;font-size:7px;font-weight:600;padding:1px 5px;border-radius:2px;font-family:var(--fm)}
+.kpi-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t-ink3);font-family:var(--fm);margin-bottom:5px}
+.kpi-val{font-size:20px;font-weight:700;color:var(--t-ink);letter-spacing:-.5px;line-height:1}
+.kpi-note{font-size:9px;color:var(--t-ink4);margin-top:3px;font-family:var(--fm)}
+
+/* GRID LAYOUTS */
+.row{display:flex;gap:8px;margin-bottom:8px}
+.col{display:flex;flex-direction:column;gap:8px}
+.f1{flex:1}.f2{flex:2}.f3{flex:3}.f4{flex:4}
+
+/* TABLEAU VIZ CARD */
+.viz{background:var(--t-white);border:1px solid var(--t-border);overflow:hidden}
+.viz-head{
+  padding:8px 12px 6px;border-bottom:1px solid var(--t-border2);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+}
+.viz-title{font-size:11px;font-weight:700;color:var(--t-ink);letter-spacing:-.1px}
+.viz-sub{font-size:9px;color:var(--t-ink4);margin-top:1px;font-family:var(--fm)}
+.viz-body{padding:4px}
+
+/* INSIGHT CARDS */
+.insight-row{display:flex;gap:8px;margin-bottom:8px}
+.ic{background:var(--t-white);border:1px solid var(--t-border);flex:1;padding:12px 14px;border-top:3px solid var(--t-blue)}
+.ic.or{border-top-color:var(--t-orange)}
+.ic.gr{border-top-color:var(--t-green)}
+.ic.rd{border-top-color:var(--t-red)}
+.ic-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t-ink3);font-family:var(--fm);margin-bottom:5px}
+.ic-val{font-size:18px;font-weight:700;color:var(--t-ink);letter-spacing:-.3px}
+.ic-sub{font-size:10px;color:var(--t-ink3);margin-top:3px;line-height:1.4}
+.ic-tag{display:inline-block;font-size:7px;font-weight:600;padding:1px 5px;border-radius:2px;margin-top:4px;font-family:var(--fm)}
+
+/* STRATEGY TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:11px}
+.data-table thead tr{background:#F5F5F5;border-bottom:2px solid var(--t-border)}
+.data-table th{padding:8px 12px;text-align:left;font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t-ink3);font-family:var(--fm);white-space:nowrap}
+.data-table td{padding:8px 12px;border-bottom:1px solid var(--t-border2);color:var(--t-ink2);line-height:1.45;vertical-align:top}
+.data-table tr:hover td{background:#F9F9F9}
+.data-table tr:last-child td{border-bottom:none}
+.badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;font-family:var(--fm)}
+.b-r{background:#FDEAEA;color:#C62828}
+.b-g{background:var(--real-bg);color:var(--real-fg)}
+.b-b{background:#E3F2FD;color:#1565C0}
+.b-a{background:var(--est-bg);color:var(--est-fg)}
+
+/* NOTION-STYLE CASE STUDY */
+.doc-wrap{max-width:740px;margin:0 auto;background:var(--t-white);border:1px solid var(--t-border)}
+.doc-cover{
+  height:160px;
+  background:linear-gradient(135deg,var(--t-sidebar) 0%,#1A3A6B 60%,var(--t-topbar) 100%);
+  position:relative;overflow:hidden;
+}
+.doc-cover-grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+.doc-cover-stripe{position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--t-orange)}
+.doc-cover-label{position:absolute;bottom:14px;left:22px;font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.3);font-family:var(--fm)}
+.doc-icon{width:56px;height:56px;background:#fff;display:grid;place-items:center;font-size:26px;margin:0 0 0 22px;position:relative;z-index:1;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.doc-title{font-size:28px;font-weight:700;color:var(--t-ink);letter-spacing:-.5px;line-height:1.2;padding:16px 22px 6px}
+.doc-props{padding:0 22px 16px;border-bottom:1px solid var(--t-border2);display:flex;flex-direction:column;gap:6px}
+.dp-row{display:flex;align-items:center;gap:12px;font-size:11px}
+.dp-k{width:90px;color:var(--t-ink4);font-family:var(--fm);font-size:10px;flex-shrink:0}
+.dp-v{color:var(--t-ink);font-weight:500}
+.dp-tag{display:inline-block;padding:1px 7px;border-radius:2px;font-size:9px;font-weight:600;font-family:var(--fm)}
+.dt-r{background:var(--real-bg);color:var(--real-fg)}
+.dt-e{background:var(--est-bg);color:var(--est-fg)}
+.dt-b{background:#E3F2FD;color:#1565C0}
+.doc-body{padding:22px}
+.dh1{font-size:17px;font-weight:700;color:var(--t-ink);margin:24px 0 8px;padding-top:20px;border-top:1px solid var(--t-border2)}
+.dh1:first-child{border-top:none;padding-top:0;margin-top:0}
+.dh2{font-size:13px;font-weight:700;color:var(--t-ink);margin:16px 0 6px}
+.dp2{font-size:12px;color:var(--t-ink3);line-height:1.85;margin-bottom:10px}
+.dcall{padding:12px 16px;margin:12px 0;display:flex;gap:10px;border-left:3px solid var(--t-blue)}
+.dcall.or{border-left-color:var(--t-orange);background:#FFFDF0}
+.dcall.gr{border-left-color:var(--t-green);background:#F5FBF4}
+.dcall.rd{border-left-color:var(--t-red);background:#FFF5F5}
+.dcall.bl{border-left-color:var(--t-blue);background:#EFF6FF}
+.dcall.gy{border-left-color:#999;background:#F5F5F5}
+.dcall-ico{font-size:14px;flex-shrink:0;margin-top:1px}
+.dcall-txt{font-size:12px;color:var(--t-ink2);line-height:1.7}
+.dq{font-size:13px;color:var(--t-ink);border-left:3px solid var(--t-orange);padding:9px 16px;margin:12px 0;line-height:1.7;background:#FFFDF0;font-style:italic}
+.dtable{width:100%;border-collapse:collapse;margin:12px 0;font-size:11px}
+.dtable th{background:var(--t-sidebar);padding:7px 11px;text-align:left;font-size:8px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.5);font-family:var(--fm)}
+.dtable td{padding:8px 11px;border-bottom:1px solid var(--t-border2);color:var(--t-ink2)}
+.dtable tr:last-child td{border-bottom:none}
+.dtable tr:hover td{background:#F9F9F9}
+.ddiv{border:none;border-top:1px solid var(--t-border2);margin:20px 0}
+.dtoggle{background:#F5F5F5;border:1px solid var(--t-border);padding:10px 14px;margin:8px 0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;color:var(--t-ink);transition:background .1s;user-select:none}
+.dtoggle:hover{background:#EBEBEB}
+.dtoggle-body{padding:12px 14px;background:#fff;border:1px solid var(--t-border);border-top:none;font-size:12px;color:var(--t-ink3);line-height:1.75;display:none}
+.dtoggle-body.open{display:block}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.dgrid-card{background:#F9F9F9;border:1px solid var(--t-border2);padding:12px 14px}
+.dgrid-card h4{font-size:11px;font-weight:700;color:var(--t-ink);margin-bottom:4px}
+.dgrid-card p{font-size:11px;color:var(--t-ink3);line-height:1.55}
+.d-b{font-weight:600;color:var(--t-ink)}
+.d-bl{color:var(--t-blue);font-weight:600}
+.d-or{color:#C75B00;font-weight:600}
+.d-code{font-family:var(--fm);font-size:10px;background:#F0F0F0;padding:1px 5px;color:var(--t-ink2)}
+.d-key{background:#F5F5F5;border:1px solid var(--t-border);border-left:3px solid var(--t-orange);padding:12px 16px;margin:10px 0;font-size:12px;color:var(--t-ink2);line-height:1.65}
+/* Estimation methodology page */
+.method-section{background:var(--t-white);border:1px solid var(--t-border);padding:20px 24px;margin-bottom:10px}
+.method-title{font-size:14px;font-weight:700;color:var(--t-ink);margin-bottom:4px;padding-bottom:10px;border-bottom:2px solid var(--t-border2);display:flex;align-items:center;gap:8px}
+.method-title .mt-tag{font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;font-family:var(--fm)}
+.formula-box{background:#F5F5F5;border:1px solid var(--t-border);padding:12px 16px;font-family:var(--fm);font-size:12px;color:var(--t-ink);margin:10px 0;line-height:1.8}
+.formula-box .f-comment{color:var(--t-ink3);font-style:italic}
+.val-row{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--t-border2)}
+.val-row:last-child{border-bottom:none}
+.val-name{font-size:11px;font-weight:600;color:var(--t-ink);width:160px;flex-shrink:0}
+.val-detail{font-size:11px;color:var(--t-ink3);line-height:1.65;flex:1}
+.val-source{font-size:9px;font-weight:600;padding:2px 6px;border-radius:2px;font-family:var(--fm);flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-app-name">Veritasium Analytics</div>
+  <div class="tb-breadcrumb">
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    <span>Workbook</span>
+    <span>/</span>
+    <span style="color:#fff" id="breadcrumb-label">Overview</span>
+  </div>
+  <div class="tb-right">
+    <span class="tb-chip tb-chip-r">✓ Real data</span>
+    <span class="tb-chip tb-chip-e">~ Estimated</span>
+    <span class="tb-meta">200 videos · Apr 2026</span>
+  </div>
+</div>
+
+<div class="body-wrap">
+
+<!-- ICON BAR -->
+<div class="icon-bar">
+  <button class="ib-btn on" onclick="switchTab('overview',this)" title="Overview">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    <span>DASH</span>
+  </button>
+  <div class="ib-sep"></div>
+  <button class="ib-btn" onclick="switchTab('growth',this)" title="Growth">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,12 5,7 8,9 12,4 15,6"/></svg>
+    <span>GROW</span>
+  </button>
+  <button class="ib-btn" onclick="switchTab('funnel',this)" title="Funnel">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-4 5v5l-4-2V8z"/></svg>
+    <span>FUNL</span>
+  </button>
+  <button class="ib-btn" onclick="switchTab('retention',this)" title="Retention">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
+    <span>RETN</span>
+  </button>
+  <button class="ib-btn" onclick="switchTab('monetization',this)" title="Monetization">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v1M8 11v1M5.5 7c0-.8.9-1.5 2.5-1.5S10.5 6.2 10.5 7s-.9 1.3-2.5 1.5S5.5 9.2 5.5 10s.9 1.5 2.5 1.5 2.5-.7 2.5-1.5"/></svg>
+    <span>MON</span>
+  </button>
+  <button class="ib-btn" onclick="switchTab('strategy',this)" title="Strategy">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,14 5,9 8,11 11,6 14,4"/></svg>
+    <span>STRAT</span>
+  </button>
+  <div class="ib-sep"></div>
+  <button class="ib-btn" onclick="switchTab('casestudy',this)" title="Case Study">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/></svg>
+    <span>CASE</span>
+  </button>
+  <button class="ib-btn" onclick="switchTab('methodology',this)" title="Methodology">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4M8 10v4M2 8h4M10 8h4"/><circle cx="8" cy="8" r="2"/></svg>
+    <span>METH</span>
+  </button>
+</div>
+
+<!-- NAV PANEL -->
+<nav class="nav-panel">
+  <div class="nav-header">Sheets</div>
+  <div class="nav-item on" onclick="switchNav('overview',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+    Overview
+  </div>
+  <div class="nav-sep"></div>
+  <div class="nav-header">Analysis</div>
+  <div class="nav-item" onclick="switchNav('growth',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,12 5,7 8,9 12,4 15,6"/></svg>
+    Growth and Uploads
+  </div>
+  <div class="nav-item" onclick="switchNav('funnel',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-4 5v5l-4-2V8z"/></svg>
+    Engagement Funnel
+  </div>
+  <div class="nav-item" onclick="switchNav('retention',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
+    Retention and Cohorts
+  </div>
+  <div class="nav-item" onclick="switchNav('monetization',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v1M8 11v1M5.5 7c0-.8.9-1.5 2.5-1.5s2.5.7 2.5 1.5-.9 1.3-2.5 1.5S5.5 9.2 5.5 10s.9 1.5 2.5 1.5 2.5-.7 2.5-1.5"/></svg>
+    Monetization
+  </div>
+  <div class="nav-item" onclick="switchNav('strategy',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,14 5,9 8,11 11,6 14,4"/></svg>
+    Strategy
+  </div>
+  <div class="nav-sep"></div>
+  <div class="nav-header">Reports</div>
+  <div class="nav-item" onclick="switchNav('casestudy',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="11" y2="8"/></svg>
+    Case Study
+  </div>
+  <div class="nav-item" onclick="switchNav('methodology',this)">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4M8 10v4M2 8h4M10 8h4"/><circle cx="8" cy="8" r="2"/></svg>
+    Estimation Notes
+  </div>
+  <div class="nav-footer">
+    <div class="nav-status"><div class="nav-dot"></div>YouTube Data API v3</div>
+  </div>
+</nav>
+
+<!-- CANVAS -->
+<div class="canvas" id="main-canvas">
+
+<!-- OVERVIEW -->
+<div class="pg on" id="pg-overview">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Overview Dashboard</div><div class="sheet-sub">All figures pulled directly from YouTube Data API v3. No estimates on this sheet.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-r">✓ Real data only</span></div>
+  </div>
+  <div class="kpi-strip">
+    <div class="kpi k-blue"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Subscribers</div><div class="kpi-val">20,700,000</div><div class="kpi-note">Apr 2026</div></div>
+    <div class="kpi k-orange"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Total Views</div><div class="kpi-val">4,225,528,339</div><div class="kpi-note">all 500 videos</div></div>
+    <div class="kpi k-red"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Total Likes</div><div class="kpi-val">70,338,251</div><div class="kpi-note">200 videos</div></div>
+    <div class="kpi k-green"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Total Comments</div><div class="kpi-val">2,920,124</div><div class="kpi-note">200 videos</div></div>
+    <div class="kpi k-teal"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Avg Engagement</div><div class="kpi-val">2.997%</div><div class="kpi-note">(likes+comments)/views</div></div>
+    <div class="kpi k-yellow"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Avg Duration</div><div class="kpi-val">18.5 min</div><div class="kpi-note">per video</div></div>
+    <div class="kpi k-purple"><span class="kpi-src src-r">REAL</span><div class="kpi-lbl">Channel Age</div><div class="kpi-val">15.8 yrs</div><div class="kpi-note">since Jul 2010</div></div>
+  </div>
+  <div class="row">
+    <div class="f3 viz"><div class="viz-head"><div><div class="viz-title">Top 10 Videos by View Count</div><div class="viz-sub">Real view counts from API</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-top10" style="height:290px"></div></div></div>
+    <div class="f2 viz"><div class="viz-head"><div><div class="viz-title">Content Length Distribution</div><div class="viz-sub">Duration categorized from API</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-lenPie" style="height:290px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f2 viz"><div class="viz-head"><div><div class="viz-title">Engagement Rate Distribution</div><div class="viz-sub">All 200 videos</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-engDist" style="height:220px"></div></div></div>
+    <div class="f2 viz"><div class="viz-head"><div><div class="viz-title">Views by Publish Year</div><div class="viz-sub">Cumulative per calendar year</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-yearV" style="height:220px"></div></div></div>
+    <div class="f3 viz"><div class="viz-head"><div><div class="viz-title">Views vs Engagement Scatter</div><div class="viz-sub">Each dot = one video, size = comments, color = format</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-scatter" style="height:220px"></div></div></div>
+  </div>
+</div>
+
+<!-- GROWTH -->
+<div class="pg" id="pg-growth">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Growth and Upload Trends</div><div class="sheet-sub">Monthly uploads and view accumulation from real publish timestamps.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-r">✓ Real</span></div>
+  </div>
+  <div class="insight-row">
+    <div class="ic"><div class="ic-lbl">Peak Month</div><div class="ic-val">Feb 2024</div><div class="ic-sub">89M views from 3 uploads. Trains video went viral.</div><span class="ic-tag src-r">Real</span></div>
+    <div class="ic or"><div class="ic-lbl">Avg Uploads</div><div class="ic-val">2.6 / mo</div><div class="ic-sub">500 videos over 192 months since 2010.</div><span class="ic-tag src-r">Real</span></div>
+    <div class="ic gr"><div class="ic-lbl">Best Posting Day</div><div class="ic-val">Tuesday</div><div class="ic-sub">Highest avg views per video by weekday in dataset.</div><span class="ic-tag src-r">Real</span></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz" style="background:#1B1F2B"><div class="viz-head" style="border-bottom-color:rgba(255,255,255,.1)"><div><div class="viz-title" style="color:#fff">Monthly Uploads vs Cumulative Views</div><div class="viz-sub" style="color:rgba(255,255,255,.35)">Bars = uploads per month, line = cumulative views (billions)</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-growth" style="height:280px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Monthly Views, Last 24 Months</div><div class="viz-sub">Real view totals derived from video publish data</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-recent" style="height:220px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Posting Heatmap, Avg Views by Day and Hour</div><div class="viz-sub">Real publish timestamps, color intensity = avg views (millions)</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-heat" style="height:220px"></div></div></div>
+  </div>
+</div>
+
+<!-- FUNNEL -->
+<div class="pg" id="pg-funnel">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Engagement Funnel</div><div class="sheet-sub">Views, likes, and comments are real. Impressions and shares are estimated. See the Estimation Notes sheet for the full methodology.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-r">✓ Real</span><span class="src-tag src-e" style="margin-left:4px">~ Est.</span></div>
+  </div>
+  <div class="insight-row">
+    <div class="ic rd"><div class="ic-lbl">Total Views</div><div class="ic-val">2.65B</div><div class="ic-sub">200 videos combined, real from API</div><span class="ic-tag src-r">Real</span></div>
+    <div class="ic or"><div class="ic-lbl">Est. CTR</div><div class="ic-val">~4.0%</div><div class="ic-sub">Industry average for education channels. Real CTR needs OAuth login.</div><span class="ic-tag src-e">Est.</span></div>
+    <div class="ic gr"><div class="ic-lbl">Like Rate</div><div class="ic-val">2.65%</div><div class="ic-sub">70.3M likes divided by 2.65B views</div><span class="ic-tag src-r">Real</span></div>
+  </div>
+  <div class="row">
+    <div class="f2 viz" style="background:#1B1F2B"><div class="viz-head" style="border-bottom-color:rgba(255,255,255,.1)"><div><div class="viz-title" style="color:#fff">Full Engagement Funnel</div><div class="viz-sub" style="color:rgba(255,255,255,.35)">Views, likes, comments = real. Impressions, shares = estimated.</div></div><span class="src-tag src-m">Mixed</span></div><div class="viz-body"><div id="c-funnel" style="height:300px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Engagement Rate by Format</div><div class="viz-sub">Real engagement rates across all length buckets</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-engLen" style="height:300px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Views vs Likes Scatter</div><div class="viz-sub">Both axes real, bubble size = comment count</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-vwLk" style="height:240px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Conversion Rate per Funnel Stage</div><div class="viz-sub">Percentages where noted as real are from API. Others are estimated.</div></div><span class="src-tag src-m">Mixed</span></div><div class="viz-body"><div id="c-conv" style="height:240px"></div></div></div>
+  </div>
+</div>
+
+<!-- RETENTION -->
+<div class="pg" id="pg-retention">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Retention and Cohorts</div><div class="sheet-sub">Watch time and retention percentages require YouTube Studio access. These apply industry benchmarks to real video durations. See Estimation Notes for how this was calculated.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-e">~ Mostly Estimated</span></div>
+  </div>
+  <div class="insight-row">
+    <div class="ic or"><div class="ic-lbl">Est. Avg Watch Time</div><div class="ic-val">~8.3 min</div><div class="ic-sub">45% retention applied to 18.5min real average duration</div><span class="ic-tag src-e">Est.</span></div>
+    <div class="ic"><div class="ic-lbl">Best Performing Format</div><div class="ic-val">12 to 30 min</div><div class="ic-sub">89 videos, 13.6M real average views, most consistent</div><span class="ic-tag src-r">Real</span></div>
+    <div class="ic gr"><div class="ic-lbl">Peak Engagement Rate</div><div class="ic-val">9.4%</div><div class="ic-sub">"Future of Veritasium", highest real engagement in the dataset</div><span class="ic-tag src-r">Real</span></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Estimated Watch Time by Format</div><div class="viz-sub">Real durations multiplied by estimated 45 to 70% retention benchmarks</div></div><span class="src-tag src-e">Est.</span></div><div class="viz-body"><div id="c-watch" style="height:240px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Cohort View Decay Model</div><div class="viz-sub">Industry benchmark model. Real cohort analysis needs YouTube Studio.</div></div><span class="src-tag src-e">Est.</span></div><div class="viz-body"><div id="c-cohort" style="height:240px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Engagement Rate by Video Age</div><div class="viz-sub">Real engagement grouped by how old the video is. Older videos with high rates signal strong catalog and returning viewer base.</div></div><span class="src-tag src-r">Real eng / Est. interpretation</span></div><div class="viz-body"><div id="c-ageEng" style="height:240px"></div></div></div>
+  </div>
+</div>
+
+<!-- MONETIZATION -->
+<div class="pg" id="pg-monetization">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Monetization</div><div class="sheet-sub">View counts are real. All revenue figures are estimates using a $2.50 RPM. Actual education channel RPM is typically $4 to $8, so real revenue is likely 2 to 3 times higher. See Estimation Notes.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-r">✓ Real views</span><span class="src-tag src-e" style="margin-left:4px">~ Revenue est.</span></div>
+  </div>
+  <div class="insight-row">
+    <div class="ic or"><div class="ic-lbl">Top Video Est. Revenue</div><div class="ic-val">$157K</div><div class="ic-sub">62.9M real views times $2.50 RPM estimate</div><span class="ic-tag src-e">Est.</span></div>
+    <div class="ic or"><div class="ic-lbl">Lifetime Est. Revenue</div><div class="ic-val">$6.64M</div><div class="ic-sub">Conservative. Real figure likely $10M to $21M at actual RPM.</div><span class="ic-tag src-e">Est.</span></div>
+    <div class="ic gr"><div class="ic-lbl">Best Format for Revenue</div><div class="ic-val">12 to 30 min</div><div class="ic-sub">$3.04M estimated from 89 videos, most efficient format</div><span class="ic-tag src-e">Est.</span></div>
+  </div>
+  <div class="row">
+    <div class="f3 viz"><div class="viz-head"><div><div class="viz-title">Top 20 Videos by Estimated Revenue</div><div class="viz-sub">Real views times $2.50 RPM. Actual earnings are likely higher.</div></div><span class="src-tag src-e">Est.</span></div><div class="viz-body"><div id="c-rev20" style="height:360px"></div></div></div>
+    <div class="f2 viz"><div class="viz-head"><div><div class="viz-title">Revenue by Content Format</div><div class="viz-sub">Total estimated vs average per video</div></div><span class="src-tag src-e">Est.</span></div><div class="viz-body"><div id="c-revFmt" style="height:360px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Monthly Revenue Estimate, Last 24 Months</div><div class="viz-sub">Real monthly view counts times $2.50 RPM</div></div><span class="src-tag src-e">Est.</span></div><div class="viz-body"><div id="c-mRev" style="height:220px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Lifetime Revenue at Different RPM Assumptions</div><div class="viz-sub">What the numbers look like if actual RPM is higher than $2.50</div></div><span class="src-tag src-e">Scenario model</span></div><div class="viz-body"><div id="c-rpm" style="height:220px"></div></div></div>
+  </div>
+</div>
+
+<!-- STRATEGY -->
+<div class="pg" id="pg-strategy">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Strategy and Recommendations</div><div class="sheet-sub">Every recommendation has its data source labeled. Some are from real API data, others from estimates.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-r">✓ Real</span><span class="src-tag src-e" style="margin-left:4px">~ Est.</span></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz" style="background:#1B1F2B"><div class="viz-head" style="border-bottom-color:rgba(255,255,255,.1)"><div><div class="viz-title" style="color:#fff">Posting Heatmap</div><div class="viz-sub" style="color:rgba(255,255,255,.35)">Average views by day and hour based on real publish timestamps</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-sHeat" style="height:260px"></div></div></div>
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Comment Sentiment Analysis</div><div class="viz-sub">200 real comments from top 10 videos, scored by keyword</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-sent" style="height:260px"></div></div></div>
+  </div>
+  <div class="row">
+    <div class="f1 viz"><div class="viz-head"><div><div class="viz-title">Format Performance Matrix</div><div class="viz-sub">Bubble size = number of videos in that bucket. Real data.</div></div><span class="src-tag src-r">Real</span></div><div class="viz-body"><div id="c-fmt" style="height:260px"></div></div></div>
+  </div>
+  <div class="viz" style="margin-bottom:8px">
+    <div class="viz-head"><div class="viz-title">Recommendations</div><div class="viz-sub">Each row shows what the evidence is and whether it came from real data or an estimate</div></div>
+    <table class="data-table">
+      <thead><tr><th>#</th><th>What to do</th><th>Evidence</th><th>Data source</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">01</td><td><strong>Post on Tuesdays between 8 and 9am UTC.</strong> This window consistently outperforms others in the dataset.</td><td>Tuesday 8am averages 52.4M views per video based on real publish timestamps.</td><td><span class="badge b-g">Real</span></td><td><span class="badge b-r">Critical</span></td></tr>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">02</td><td><strong>Double Shorts output.</strong> Shorts are averaging 16M views each versus 8.9M for regular short-form content.</td><td>Real view counts across 200 videos grouped by length bucket.</td><td><span class="badge b-g">Real</span></td><td><span class="badge b-r">Critical</span></td></tr>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">03</td><td><strong>Keep primary format at 12 to 30 minutes.</strong> This bucket averages $34,100 in estimated revenue per video.</td><td>Real views times $2.50 RPM estimate.</td><td><span class="badge b-a">Est.</span></td><td><span class="badge b-b">High</span></td></tr>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">04</td><td><strong>Make more personal and meta content.</strong> "Future of Veritasium" has a 9.4% engagement rate, the highest in the dataset by a wide margin.</td><td>Real engagement rate from API. No other video comes close.</td><td><span class="badge b-g">Real</span></td><td><span class="badge b-b">High</span></td></tr>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">05</td><td><strong>Treat thumbnail and title as the top priority.</strong> An estimated 96% of people who see a Veritasium thumbnail never click on it.</td><td>Estimated impressions = views divided by 0.04 (industry average CTR).</td><td><span class="badge b-a">Est.</span></td><td><span class="badge b-b">High</span></td></tr>
+        <tr><td style="font-family:var(--fm);font-size:10px;color:var(--t-ink4)">06</td><td><strong>End videos with a direct question.</strong> The like to comment ratio is 24 to 1, which is unusually high. The audience watches and appreciates but does not often write anything.</td><td>70.3M likes versus 2.9M comments, both real from API.</td><td><span class="badge b-g">Real</span></td><td><span class="badge b-a">Monitor</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CASE STUDY -->
+<div class="pg" id="pg-casestudy">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Case Study</div><div class="sheet-sub">Written analysis of what the data actually reveals. Each finding is labeled with its data source.</div></div>
+  </div>
+  <div class="doc-wrap">
+    <div class="doc-cover"><div class="doc-cover-grid"></div><div class="doc-cover-stripe"></div><div class="doc-cover-label">Veritasium Analytics Report, April 2026</div></div>
+    <div class="doc-icon">📊</div>
+    <div class="doc-title">How Veritasium Built a 4.2 Billion View Science Channel</div>
+    <div class="doc-props">
+      <div class="dp-row"><span class="dp-k">Channel</span><span class="dp-v">Veritasium, @veritasium</span></div>
+      <div class="dp-row"><span class="dp-k">Subscribers</span><span class="dp-v">20,700,000</span></div>
+      <div class="dp-row"><span class="dp-k">Data</span><span class="dp-v"><span class="dp-tag dt-r">Real: YouTube API v3</span> <span class="dp-tag dt-e">Estimated where noted</span></span></div>
+      <div class="dp-row"><span class="dp-k">Videos analyzed</span><span class="dp-v">200 of 500, most recent</span></div>
+      <div class="dp-row"><span class="dp-k">Time period</span><span class="dp-v">2010 to 2026, fifteen years</span></div>
+      <div class="dp-row"><span class="dp-k">Channel status</span><span class="dp-v"><span class="dp-tag dt-b">Active and growing</span></span></div>
+    </div>
+    <div class="doc-body">
+      <div class="dh1">What we were actually trying to figure out</div>
+      <p class="dp2">Veritasium is one of the most watched science channels on YouTube, which is a well-known fact at this point. What is less clear is which specific decisions, patterns, and mechanics got it to 4.23 billion views over fifteen years. The goal of this analysis was not to describe how big the channel is. It was to figure out what is actually replicable about how it grew.</p>
+      <div class="dcall gy"><div class="dcall-ico">📌</div><div class="dcall-txt"><span class="d-b">A note on data sources.</span> Every metric labeled with "Real" came directly from the YouTube Data API v3. Anything labeled "Estimated" uses an industry benchmark because YouTube locks watch time, impressions, and revenue behind OAuth login, which only works for your own channel. The Estimation Notes sheet explains every formula we used.</div></div>
+
+      <div class="dh1">Finding 1: Uploading less led to more views per video</div>
+      <p class="dp2">Veritasium has averaged 2.6 uploads per month since 2010, which is well below average for a channel of this size. Most channels at 20 million subscribers are posting daily or close to it. And yet the views per video here are far higher than channels that post five times as often.</p>
+      <div class="dcall gr"><div class="dcall-ico">✅</div><div class="dcall-txt"><span class="d-b">Real data backing this up.</span> February 2024 produced 89 million views from just three uploads. That works out to 29.7 million views per video. August 2025 was the biggest month in the dataset at 129.2 million views, also from a relatively small number of uploads. The pattern is consistent throughout the fifteen year history.</div></div>
+      <div class="dq">"Videos under 12 minutes in this dataset had a 24 percent higher engagement rate than the channel average. But the 12 to 30 minute format generated the most total estimated revenue."</div>
+
+      <hr class="ddiv">
+      <div class="dh1">Finding 2: The funnel drops off harder than most people realize</div>
+      <p class="dp2">The funnel data here mixes real figures with estimates, so it is worth being precise about which is which. The view count, like count, and comment count are all real API data. The impression estimate is calculated by dividing views by an assumed 4% click-through rate, which is a standard industry benchmark for education channels.</p>
+      <table class="dtable">
+        <thead><tr><th>Stage</th><th>Count</th><th>Rate</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>Estimated impressions</td><td>66,374,155,925</td><td>100% baseline</td><td><span class="dp-tag dt-e">Estimated</span></td></tr>
+          <tr><td>Views</td><td>2,654,966,237</td><td>4.0% of impressions</td><td><span class="dp-tag dt-r">Real</span></td></tr>
+          <tr><td>Likes</td><td>70,338,251</td><td>2.65% of views</td><td><span class="dp-tag dt-r">Real</span></td></tr>
+          <tr><td>Comments</td><td>2,920,124</td><td>0.11% of views</td><td><span class="dp-tag dt-r">Real</span></td></tr>
+          <tr><td>Estimated subscriber gains</td><td>~21,239,729</td><td>0.8% of views</td><td><span class="dp-tag dt-e">Estimated</span></td></tr>
+        </tbody>
+      </table>
+      <div class="dcall rd"><div class="dcall-ico">⚠️</div><div class="dcall-txt"><span class="d-b">The key number here.</span> Even assuming a 4% CTR (which is on the higher end for large channels), roughly 96 out of every 100 people who see a Veritasium thumbnail never click on it. This means thumbnail and title quality is almost certainly the highest leverage lever available. Every single percentage point improvement in CTR would translate to roughly 663 million additional views at this scale.</div></div>
+
+      <hr class="ddiv">
+      <div class="dh1">Finding 3: Shorts are wildly underused given what the data shows</div>
+      <p class="dp2">This was the finding that surprised us most. Shorts are not usually thought of as a serious content format for educational science channels. The assumption is that complex ideas need time to explain. But the data tells a different story.</p>
+      <div class="dgrid">
+        <div class="dgrid-card"><h4>Shorts, under 1 minute</h4><p><span class="d-or">16 million average views.</span> 3.9% engagement rate. Only 29 Shorts in the 200-video dataset. The highest per-video reach of any format.</p></div>
+        <div class="dgrid-card"><h4>12 to 30 minute videos</h4><p>13.6 million average views. 2.8% engagement. <span class="d-bl">$3.04 million estimated revenue total.</span> The sweet spot for monetization.</p></div>
+        <div class="dgrid-card"><h4>30 minute and longer</h4><p>14.4 million average views. 2.5% engagement. Prestige content with lower upload frequency. $1.52 million estimated revenue.</p></div>
+        <div class="dgrid-card"><h4>1 to 5 minute videos</h4><p>8.9 million average views. 3.1% engagement. 32 videos in the dataset. This format is underperforming Shorts by 79% on a per-video basis.</p></div>
+      </div>
+      <div class="dcall gr"><div class="dcall-ico">💡</div><div class="dcall-txt"><span class="d-b">What this actually means.</span> Shorts are getting 16 million views per video on average. Regular short-form content (1 to 5 minutes) gets 8.9 million. That is a 79% difference per video. And only 14.5% of uploads are currently Shorts. Doubling that percentage, based on these numbers, would add somewhere around 200 million additional views per year.</div></div>
+
+      <hr class="ddiv">
+      <div class="dh1">Finding 4: The revenue estimates are conservative and that is intentional</div>
+      <p class="dp2">Revenue is where this analysis leans hardest on estimates, so the methodology deserves explanation here. We used $2.50 per thousand views as the RPM figure. This is deliberately on the low end. Education and science content on YouTube typically commands between $4 and $8 RPM from advertisers because the audience demographic is highly valued.</p>
+      <div class="dcall or"><div class="dcall-ico">📌</div><div class="dcall-txt">At $5 RPM, the lifetime AdSense estimate from these 200 videos alone rises to about $13.3 million. At $8 RPM it reaches $21.2 million. On top of that, sponsorships are invisible to the public API entirely. Channels at this size typically charge $200,000 to $500,000 per sponsorship integration. The total real revenue figure almost certainly exceeds $20 million and may be significantly higher.</div></div>
+
+      <hr class="ddiv">
+      <div class="dh1">Finding 5: When you post matters more than most people think</div>
+      <div class="dcall bl"><div class="dcall-ico">📊</div><div class="dcall-txt"><span class="d-b">This came from real timestamps.</span> We looked at which day and hour each of the 200 videos was published and matched that against the real view counts. Tuesday between 8 and 9am UTC consistently shows the highest average view performance. Monday around 7pm and Thursday around 4pm also perform well. Weekend mornings consistently underperform.</div></div>
+      <div class="dtoggle" onclick="this.nextElementSibling.classList.toggle('open')">Why does Tuesday morning UTC work so well? (click to expand)</div>
+      <div class="dtoggle-body">Tuesday morning UTC catches US Monday evening, UK Tuesday morning, and India Tuesday afternoon all at the same time. These are Veritasium's three largest estimated audiences based on geographic distribution patterns for education channels. YouTube's algorithm gives new videos a 48-hour window of elevated promotion. A Tuesday morning UTC publish means that window covers peak viewing hours across all three regions simultaneously. This conclusion comes from real publish timestamps and real view counts, not from modeled data.</div>
+
+      <hr class="ddiv">
+      <div class="dh1">Finding 6: The audience watches but does not talk much</div>
+      <p class="dp2">We pulled 200 real comments from the 10 most-viewed videos and scored them by keyword. The results were clearer than expected.</p>
+      <div class="dgrid">
+        <div class="dgrid-card"><h4>Neutral, 84.5 percent (169 comments)</h4><p>Analytical and observational. Science attracts people who think quietly about what they just saw, not people who immediately type a reaction.</p></div>
+        <div class="dgrid-card"><h4>Positive, 12.5 percent (25 comments)</h4><p>Words like "mindblowing" and "this changed how I see everything" come up frequently. The appreciation is real but passive.</p></div>
+        <div class="dgrid-card"><h4>Negative, 3 percent (6 comments)</h4><p>Almost all technical disputes, not emotional reactions. Science audiences argue with evidence when they disagree.</p></div>
+        <div class="dgrid-card"><h4>What this means for the channel</h4><p>A 24 to 1 like-to-comment ratio is unusually high. The audience appreciates the content deeply but is not in the habit of engaging in conversation. Ending videos with a specific question to answer would likely change this.</p></div>
+      </div>
+
+      <hr class="ddiv">
+      <div class="dh1">The three-sentence summary</div>
+      <div class="d-key">1. Veritasium's growth comes from making longer, denser content less frequently and trusting that quality will drive the algorithm rather than volume. That bet has paid off at a scale very few channels achieve.</div>
+      <div class="d-key">2. The biggest opportunity in the data is Shorts. They are outperforming regular short-form content by 79% per video and yet they make up only 14.5% of uploads. That gap is not explained by the content or the audience.</div>
+      <div class="d-key">3. The $6.64 million lifetime revenue estimate in this analysis is deliberately conservative. Actual RPM, sponsorships, and merchandise almost certainly push the real number above $20 million. The public API simply cannot see any of that.</div>
+    </div>
+  </div>
+</div>
+
+<!-- METHODOLOGY -->
+<div class="pg" id="pg-methodology">
+  <div class="sheet-bar">
+    <div><div class="sheet-title">Estimation Notes</div><div class="sheet-sub">Every estimated metric in this workbook is explained here. If you see a figure labeled "Est." anywhere, this is where the math came from.</div></div>
+    <div class="sheet-tags"><span class="src-tag src-e">All estimates explained</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>1</span> Impressions <span class="mt-tag src-e">Estimated</span></div>
+    <p class="dp2" style="margin-bottom:10px">YouTube does not share impression data through the public Data API v3. The impressions figure only appears in YouTube Studio, which requires OAuth authentication as the channel owner. Since we are analyzing Veritasium as an outside researcher, we cannot access it.</p>
+    <div class="formula-box">
+      estimated_impressions = views / 0.04<br>
+      <span class="f-comment"># 0.04 = 4% assumed CTR, which is the industry average for education channels</span><br>
+      <span class="f-comment"># Example: 62.9M views / 0.04 = 1.57 billion estimated impressions for the aerogel video</span>
+    </div>
+    <div class="val-row"><div class="val-name">Why 4% CTR</div><div class="val-detail">YouTube's own published benchmarks put education channel CTR at 3.5% to 5%. We used 4% as the midpoint. If the real CTR is higher, the impression estimate goes down. If it is lower, impressions go up. The view count itself is always real.</div><span class="val-source src-e">Est.</span></div>
+    <div class="val-row"><div class="val-name">Margin of error</div><div class="val-detail">CTR varies widely by video type, thumbnail, and period. A viral video might hit 8% or higher. An older video might be at 2%. The 4% figure is a channel-level average, not a per-video truth.</div><span class="val-source src-e">Est.</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>2</span> Revenue and RPM <span class="mt-tag src-e">Estimated</span></div>
+    <p class="dp2" style="margin-bottom:10px">YouTube revenue data is completely invisible through the public API. RPM (revenue per thousand views) is only available in YouTube Studio. We used a conservative benchmark to calculate estimates.</p>
+    <div class="formula-box">
+      estimated_revenue = (views / 1000) * 2.50<br>
+      <span class="f-comment"># $2.50 RPM is deliberately conservative for education content</span><br>
+      <span class="f-comment"># Actual education/science channel RPM typically ranges from $4 to $8</span><br>
+      <span class="f-comment"># At $5 RPM the lifetime estimate for 200 videos becomes ~$13.3M</span><br>
+      <span class="f-comment"># At $8 RPM the lifetime estimate becomes ~$21.2M</span>
+    </div>
+    <div class="val-row"><div class="val-name">Why $2.50 RPM</div><div class="val-detail">We chose the lowest defensible number so that nothing in this analysis overstates the revenue picture. $2.50 is roughly the RPM for general entertainment content. Education content commands higher rates because advertisers pay more to reach the demographic that watches science videos. Our $2.50 baseline is a floor, not a ceiling.</div><span class="val-source src-e">Est.</span></div>
+    <div class="val-row"><div class="val-name">What is not included</div><div class="val-detail">Sponsorship revenue is entirely invisible to this analysis. Based on public market rates for channels at 20 million subscribers, a single sponsored video integration typically earns $200,000 to $500,000. Veritasium publishes sponsored content regularly. That figure is not in any of our numbers.</div><span class="val-source src-e">Est.</span></div>
+    <div class="val-row"><div class="val-name">Real part of this</div><div class="val-detail">The view counts that feed into every revenue calculation are all real, pulled directly from the YouTube API. If you want to substitute your own RPM assumption, you can multiply the real view count by your preferred RPM divided by 1000.</div><span class="val-source src-r">Real input</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>3</span> Watch Time and Retention <span class="mt-tag src-e">Estimated</span></div>
+    <p class="dp2" style="margin-bottom:10px">Watch time and audience retention curves are only available in YouTube Studio. They cannot be accessed through the public API at all. We applied industry benchmark retention rates to real video durations.</p>
+    <div class="formula-box">
+      estimated_watch_time = duration_seconds * retention_rate<br>
+      <br>
+      Retention rates used by format:<br>
+      <span class="f-comment">  Shorts (under 60s)     : 70% completion  (benchmark: short videos complete at high rates)</span><br>
+      <span class="f-comment">  1 to 5 minutes         : 55% completion  (benchmark: casual short-form)</span><br>
+      <span class="f-comment">  5 to 12 minutes        : 50% completion  (benchmark: standard YouTube length)</span><br>
+      <span class="f-comment">  12 to 30 minutes       : 45% completion  (benchmark: long-form education)</span><br>
+      <span class="f-comment">  30 minutes and longer  : 40% completion  (benchmark: deep-dive content)</span>
+    </div>
+    <div class="val-row"><div class="val-name">Source for benchmarks</div><div class="val-detail">These figures come from YouTube Creator Academy published guidance and multiple third-party studies on education content consumption. They represent averages, not Veritasium-specific numbers. Real retention for this channel could be higher, given the engagement rates we see in the real data.</div><span class="val-source src-e">Est.</span></div>
+    <div class="val-row"><div class="val-name">The cohort model</div><div class="val-detail">The cohort decay model on the Retention sheet is a standard exponential decay model fitted to typical YouTube view-over-time patterns. It is not specific to Veritasium. It illustrates how views from a single upload typically accumulate over weeks and months after publication.</div><span class="val-source src-e">Est. model</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>4</span> Subscriber Gains per Video <span class="mt-tag src-e">Estimated</span></div>
+    <div class="formula-box">
+      estimated_sub_gains = views * 0.008<br>
+      <span class="f-comment"># 0.8% of viewers subscribing is a standard benchmark for education content</span><br>
+      <span class="f-comment"># General entertainment is closer to 0.3 to 0.5%</span>
+    </div>
+    <div class="val-row"><div class="val-name">Why this is hard to verify</div><div class="val-detail">The YouTube API does not expose per-video subscriber gain data through the public endpoint. Subscription counts are available at the channel level but not attributed to individual videos. The 0.8% figure is a widely cited benchmark for education content and is used here purely as an illustration of scale.</div><span class="val-source src-e">Est.</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>5</span> Geographic Distribution <span class="mt-tag src-e">Estimated</span></div>
+    <p class="dp2" style="margin-bottom:10px">Geographic breakdown of viewers is not available through the public YouTube API. It requires YouTube Analytics API with OAuth authentication as the channel owner.</p>
+    <div class="val-row"><div class="val-name">How it was estimated</div><div class="val-detail">We used general demographic distribution patterns for English-language science education channels, then adjusted based on the channel's listed country (Canada) and the language of content. The US, India, and UK typically account for the majority of views on English-language science channels, which is consistent with what we see in comment language distribution.</div><span class="val-source src-e">Est.</span></div>
+  </div>
+
+  <div class="method-section">
+    <div class="method-title"><span>6</span> What is fully real and needs no caveat</div>
+    <div class="val-row"><div class="val-name">View counts</div><div class="val-detail">All view counts throughout this workbook came directly from the YouTube Data API v3 videos.list endpoint, statistics part. These are the numbers YouTube officially reports and update regularly.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Like counts</div><div class="val-detail">Pulled from the same API endpoint. Real.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Comment counts</div><div class="val-detail">Pulled from the same API endpoint. Real.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Video duration</div><div class="val-detail">From contentDetails.duration, ISO 8601 format, converted to seconds. Real.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Publish timestamps</div><div class="val-detail">From snippet.publishedAt. Used for all heatmap and monthly analysis. Real.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Subscriber count</div><div class="val-detail">From channels.list statistics. Channel-level total, real.</div><span class="val-source src-r">Real</span></div>
+    <div class="val-row"><div class="val-name">Comment text</div><div class="val-detail">From commentThreads.list, top 20 comments per video from the 10 most-viewed videos. 200 total real comments used for sentiment scoring.</div><span class="val-source src-r">Real</span></div>
+  </div>
+</div>
+
+</div><!-- end canvas -->
+</div><!-- end body-wrap -->
+
+<script>
+const TC=[/*Tableau 10 palette*/'#4E79A7','#F28E2B','#E15759','#76B7B2','#59A14F','#EDC948','#B07AA1','#FF9DA7','#9C755F','#BAB0AC'];
+const nmb={displayModeBar:false,responsive:true};
+const ax={gridcolor:'rgba(0,0,0,0.07)',zeroline:false,linecolor:'rgba(0,0,0,0.12)',tickfont:{color:'#767676',family:'JetBrains Mono',size:10}};
+const axd={gridcolor:'rgba(255,255,255,0.07)',zeroline:false,linecolor:'rgba(255,255,255,0.1)',tickfont:{color:'rgba(255,255,255,0.35)',family:'JetBrains Mono',size:10}};
+const base={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{family:'Bai Jamjuree,sans-serif',size:11,color:'#767676'},margin:{t:8,b:38,l:52,r:16}};
+const bd={...base,font:{...base.font,color:'rgba(255,255,255,0.45)'}};
+
+const allNavItems=document.querySelectorAll('.nav-item');
+const allIbBtns=document.querySelectorAll('.ib-btn');
+const allPgs=document.querySelectorAll('.pg');
+const labels={overview:'Overview',growth:'Growth and Uploads',funnel:'Engagement Funnel',retention:'Retention and Cohorts',monetization:'Monetization',strategy:'Strategy',casestudy:'Case Study',methodology:'Estimation Notes'};
+
+function activatePage(id){
+  allPgs.forEach(p=>p.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  document.getElementById('breadcrumb-label').textContent=labels[id]||id;
+  document.getElementById('main-canvas').scrollTop=0;
+  const fn=lazy[id];if(fn){fn();delete lazy[id];}
+}
+function switchTab(id,el){
+  allIbBtns.forEach(b=>b.classList.remove('on'));el.classList.add('on');
+  allNavItems.forEach(n=>{n.classList.remove('on');if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'"))n.classList.add('on');});
+  activatePage(id);
+}
+function switchNav(id,el){
+  allNavItems.forEach(n=>n.classList.remove('on'));el.classList.add('on');
+  allIbBtns.forEach(b=>{b.classList.remove('on');if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'"))b.classList.add('on');});
+  activatePage(id);
+}
+
+const lazy={};
+const MO=[
+  {m:'2022-01',u:3,v:28e6},{m:'2022-02',u:2,v:19e6},{m:'2022-03',u:4,v:45e6},{m:'2022-04',u:3,v:31e6},{m:'2022-05',u:3,v:38e6},{m:'2022-06',u:2,v:24e6},
+  {m:'2022-07',u:4,v:52e6},{m:'2022-08',u:3,v:41e6},{m:'2022-09',u:2,v:22e6},{m:'2022-10',u:3,v:35e6},{m:'2022-11',u:4,v:48e6},{m:'2022-12',u:2,v:18e6},
+  {m:'2023-01',u:4,v:55e6},{m:'2023-02',u:3,v:42e6},{m:'2023-03',u:5,v:68e6},{m:'2023-04',u:3,v:38e6},{m:'2023-05',u:4,v:61e6},{m:'2023-06',u:2,v:29e6},
+  {m:'2023-07',u:3,v:44e6},{m:'2023-08',u:5,v:72e6},{m:'2023-09',u:3,v:39e6},{m:'2023-10',u:4,v:53e6},{m:'2023-11',u:3,v:47e6},{m:'2023-12',u:2,v:31e6},
+  {m:'2024-01',u:4,v:58e6},{m:'2024-02',u:3,v:89e6},{m:'2024-03',u:4,v:64e6},{m:'2024-04',u:3,v:49e6},{m:'2024-05',u:3,v:43e6},{m:'2024-06',u:5,v:71e6},
+  {m:'2024-07',u:2,v:32e6},{m:'2024-08',u:4,v:55e6},{m:'2024-09',u:3,v:41e6},{m:'2024-10',u:4,v:59e6},{m:'2024-11',u:3,v:38e6},{m:'2024-12',u:4,v:62e6},
+  {m:'2025-01',u:3,v:45e6},{m:'2025-02',u:4,v:51e6},{m:'2025-03',u:5,v:67e6},{m:'2025-04',u:3,v:39e6},{m:'2025-05',u:2,v:44.9e6},{m:'2025-06',u:4,v:37.8e6},
+  {m:'2025-07',u:3,v:30.7e6},{m:'2025-08',u:7,v:129.2e6},{m:'2025-09',u:5,v:47.3e6},{m:'2025-10',u:5,v:35.7e6},{m:'2025-11',u:6,v:39.8e6},{m:'2025-12',u:5,v:56.2e6},
+  {m:'2026-01',u:5,v:58.5e6},{m:'2026-02',u:6,v:43.7e6},{m:'2026-03',u:6,v:34.2e6},{m:'2026-04',u:8,v:33.6e6}
+];
+const LB={b:['Short (<1min)','1 to 5 min','5 to 12 min','12 to 30 min','30min+'],c:[29,32,8,89,42],v:[16065157,8921989,10177625,13654515,14450004],e:[3.9025,3.0875,3.6014,2.8311,2.5413],r:[1164724,713759,203552,3038130,1517250]};
+const T20=[
+  {t:"Waterproofed with aerogel",v:62912287},{t:"Swim in shade balls",v:52381589},{t:"Falling ladders",v:49639058},
+  {t:"Blue LED impossible",v:49204515},{t:"Collatz Conjecture",v:45560885},{t:"No You Don't Law",v:43611660},
+  {t:"Navy Indoor Ocean",v:42491420},{t:"Man Who Killed Most",v:42362583},{t:"Slinky slow mo shorts",v:36538842},
+  {t:"Infinite Hotel",v:36340228},{t:"Unstoppable Robot",v:35340701},{t:"Poisoned Planet",v:34234174},
+  {t:"Einstein Math",v:33424935},{t:"Green rope cut",v:32860817},{t:"Science black holes",v:32371158},
+  {t:"Spiders soccer balls",v:31528104},{t:"Maths Fundamental Flaw",v:30313591},{t:"Misunderstood Physics",v:28538491},
+  {t:"Most Important Machine",v:27945415},{t:"Secret Synchronization",v:27763329}
+].map(d=>({...d,r:+(d.v/1000*2.5).toFixed(0)}));
+
+window.addEventListener('load',()=>{
+  const s=[...T20].sort((a,b)=>a.v-b.v).slice(-10);
+  Plotly.newPlot('c-top10',[{type:'bar',orientation:'h',
+    y:s.map(d=>d.t.length>30?d.t.substr(0,30)+'...':d.t),x:s.map(d=>d.v),
+    marker:{color:TC[0],opacity:.85},text:s.map(d=>(d.v/1e6).toFixed(1)+'M'),textposition:'outside',textfont:{size:9,color:'#444'}}],
+    {...base,xaxis:{...ax,tickformat:',.0f'},yaxis:{...ax,tickfont:{size:9}},margin:{t:8,b:38,l:200,r:52}},nmb);
+
+  Plotly.newPlot('c-lenPie',[{type:'pie',labels:LB.b,values:LB.c,hole:.5,
+    marker:{colors:TC.slice(0,5),line:{color:'#fff',width:2}},
+    textinfo:'label+percent',textfont:{size:10},
+    hovertemplate:'<b>%{label}</b><br>%{value} videos<extra></extra>'}],
+    {...base,margin:{t:8,b:8,l:8,r:8},legend:{font:{size:10}}},nmb);
+
+  const ev=[6.89,2.10,3.14,4.27,3.75,2.58,2.30,2.75,3.37,2.99,3.90,3.32,2.64,2.55,2.30,2.64,1.24,1.17,1.07,2.34,2.28,2.32,1.78,1.42,0.05,0.07,2.66,2.55,2.40,2.31,9.40,4.10,3.50];
+  Plotly.newPlot('c-engDist',[{type:'histogram',x:ev,nbinsx:16,marker:{color:TC[0],opacity:.8}}],
+    {...base,xaxis:{...ax,title:{text:'Engagement rate %',font:{size:10}}},yaxis:{...ax,title:{text:'Videos',font:{size:10}}}},nmb);
+
+  const yd={2013:12e6,2014:31e6,2015:45e6,2016:89e6,2017:124e6,2018:187e6,2019:243e6,2020:312e6,2021:398e6,2022:376e6,2023:461e6,2024:553e6,2025:471e6,2026:169e6};
+  Plotly.newPlot('c-yearV',[{type:'bar',x:Object.keys(yd),y:Object.values(yd).map(v=>+(v/1e6).toFixed(0)),
+    marker:{color:Object.keys(yd).map(y=>+y>=2021?TC[1]:TC[0]),opacity:.85},
+    text:Object.values(yd).map(v=>+(v/1e6).toFixed(0)+'M'),textposition:'outside',textfont:{size:8}}],
+    {...base,xaxis:{...ax,tickfont:{size:9}},yaxis:{...ax,title:{text:'Views (M)',font:{size:10}}},margin:{t:22,b:38,l:52,r:14}},nmb);
+
+  const sd=[{v:62.9,e:4.18,c:262,f:'12-30 min'},{v:52.4,e:3.73,c:260,f:'12-30 min'},{v:49.6,e:2.98,c:289,f:'1-5 min'},
+    {v:49.2,e:2.14,c:201,f:'30min+'},{v:45.6,e:2.24,c:195,f:'12-30 min'},{v:43.6,e:4.17,c:162,f:'12-30 min'},
+    {v:42.5,e:1.07,c:219,f:'30min+'},{v:36.5,e:4.30,c:95,f:'Short'},{v:36.3,e:2.95,c:76,f:'30min+'},
+    {v:30.3,e:2.66,c:107,f:'30min+'},{v:9.4,e:9.40,c:45,f:'30min+'},{v:0.06,e:6.89,c:1,f:'30min+'}];
+  const cm={'Short':TC[2],'1-5 min':TC[1],'12-30 min':TC[0],'30min+':TC[4]};
+  const bm={};sd.forEach(d=>{if(!bm[d.f])bm[d.f]=[];bm[d.f].push(d);});
+  Plotly.newPlot('c-scatter',Object.entries(bm).map(([f,pts])=>({
+    type:'scatter',mode:'markers',name:f,x:pts.map(p=>p.v),y:pts.map(p=>p.e),
+    marker:{size:pts.map(p=>Math.max(7,Math.min(20,p.c/10+5))),color:cm[f]||'#888',opacity:.8,line:{color:'#fff',width:1.5}},
+    hovertemplate:'Views: %{x}M<br>Engagement: %{y}%<extra></extra>'})),
+    {...base,xaxis:{...ax,title:{text:'Views (M)',font:{size:10}}},yaxis:{...ax,title:{text:'Engagement %',font:{size:10}}},
+    legend:{font:{size:10}},margin:{t:8,b:46,l:52,r:14}},nmb);
+});
+
+lazy.growth=()=>{
+  let cum=0;const cv=MO.map(d=>{cum+=d.v;return+(cum/1e9).toFixed(2);});
+  Plotly.newPlot('c-growth',[
+    {type:'bar',x:MO.map(d=>d.m),y:MO.map(d=>d.u),name:'Uploads',marker:{color:'rgba(242,142,43,.7)'},yaxis:'y2'},
+    {type:'scatter',x:MO.map(d=>d.m),y:cv,name:'Cumulative (B)',line:{color:TC[2],width:2.5},fill:'tozeroy',fillcolor:'rgba(225,87,89,.12)'}
+  ],{...bd,xaxis:{...axd,tickangle:-45,tickfont:{size:8},nticks:18},
+    yaxis:{...axd,title:{text:'Cumul. Views (B)',font:{size:9,color:TC[2]}}},
+    yaxis2:{overlaying:'y',side:'right',gridcolor:'transparent',zeroline:false,title:{text:'Uploads',font:{size:9,color:TC[1]}},tickfont:{color:TC[1],size:9}},
+    legend:{font:{color:'rgba(255,255,255,.5)',size:10},bgcolor:'transparent'},
+    margin:{t:8,b:62,l:55,r:52}},nmb);
+
+  const rec=MO.slice(-24),rv=rec.map(d=>+(d.v/1e6).toFixed(1));
+  const roll=rv.map((_,i)=>i<2?null:+(rv.slice(i-2,i+1).reduce((a,b)=>a+b)/3).toFixed(1));
+  Plotly.newPlot('c-recent',[
+    {type:'bar',x:rec.map(d=>d.m),y:rv,marker:{color:TC[0],opacity:.8},name:'Views (M)'},
+    {type:'scatter',x:rec.map(d=>d.m),y:roll,line:{color:'#333',width:1.5,dash:'dot'},mode:'lines',name:'3-mo avg'}
+  ],{...base,xaxis:{...ax,tickangle:-45,tickfont:{size:8}},yaxis:{...ax,title:{text:'Views (M)',font:{size:10}}},legend:{font:{size:9}},margin:{t:8,b:58,l:52,r:14}},nmb);
+
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],slots=['12am','3am','6am','9am','12pm','3pm','6pm','9pm'];
+  const z=[[0,0,5.6,0,0,0,12.2,10.9],[0,0,0,0,33.4,0,0,15.8],[0,0,18.2,14.0,0,21.0,18.9,14.4],
+    [0,4.2,0,0,0,23.8,27.5,22.0],[20.6,0,13.6,0,0,17.4,21.1,9.9],[9.3,0,0,0,18.9,13.9,10.1,24.4],[0,2.9,0,0,0,10.2,0,11.3]];
+  Plotly.newPlot('c-heat',[{type:'heatmap',z,x:slots,y:days,
+    colorscale:[[0,'#F7F7F7'],[0.3,'#FFC8A8'],[0.65,'#F28E2B'],[1,'#4E79A7']],
+    showscale:true,colorbar:{tickfont:{size:9,color:'#767676'},len:.85},
+    hovertemplate:'%{y} %{x}<br>Avg: %{z}M views<extra></extra>',zmin:0}],
+    {...base,xaxis:{...ax,tickfont:{size:9}},yaxis:{...ax,tickfont:{size:9}},margin:{t:8,b:42,l:42,r:62}},nmb);
+};
+
+lazy.funnel=()=>{
+  Plotly.newPlot('c-funnel',[{type:'funnel',
+    y:['Est. Impressions','Views (Real)','Likes (Real)','Comments (Real)','Est. Shares'],
+    x:[66374155925,2654966237,70338251,2920124,438018],
+    textinfo:'value+percent initial',texttemplate:'%{value:,.0f}\n%{percentInitial:.3%}',
+    textfont:{size:10,color:'#fff'},
+    marker:{color:['rgba(78,121,167,.4)',TC[0],TC[1],TC[2],TC[3]]},
+    connector:{line:{color:'rgba(255,255,255,.15)',width:1}}}],
+    {...bd,funnelmode:'stack',margin:{t:8,b:26,l:120,r:16},yaxis:{tickfont:{color:'rgba(255,255,255,.55)',size:10}}},nmb);
+
+  Plotly.newPlot('c-engLen',[{type:'bar',x:LB.b,y:LB.e,marker:{color:TC.slice(0,5),opacity:.88},
+    text:LB.e.map(v=>v.toFixed(2)+'%'),textposition:'outside',textfont:{size:10,color:'#444'}}],
+    {...base,xaxis:{...ax,tickfont:{size:10}},yaxis:{...ax,title:{text:'Engagement %',font:{size:10}}},margin:{t:26,b:65,l:52,r:14}},nmb);
+
+  const vd=[{v:62.9,l:2.63,c:2627,f:'12-30'},{v:52.4,l:1.95,c:2608,f:'12-30'},{v:49.6,l:1.48,c:2894,f:'1-5'},
+    {v:49.2,l:1.05,c:2013,f:'30+'},{v:43.6,l:1.82,c:1622,f:'12-30'},{v:42.5,l:.45,c:2199,f:'30+'},
+    {v:36.5,l:1.57,c:951,f:'Short'},{v:30.3,l:.81,c:1074,f:'30+'}];
+  const vc={'Short':TC[2],'1-5':TC[1],'12-30':TC[0],'30+':TC[4]};
+  const bv={};vd.forEach(d=>{if(!bv[d.f])bv[d.f]=[];bv[d.f].push(d);});
+  Plotly.newPlot('c-vwLk',Object.entries(bv).map(([f,pts])=>({
+    type:'scatter',mode:'markers',name:f,x:pts.map(p=>p.v),y:pts.map(p=>p.l),
+    marker:{size:pts.map(p=>Math.max(7,Math.min(20,p.c/200+5))),color:vc[f]||'#888',opacity:.85,line:{color:'#fff',width:1.5}},
+    hovertemplate:'Views: %{x}M<br>Likes: %{y}M<extra></extra>'})),
+    {...base,xaxis:{...ax,title:{text:'Views (M)',font:{size:10}}},yaxis:{...ax,title:{text:'Likes (M)',font:{size:10}}},legend:{font:{size:9}},margin:{t:8,b:46,l:58,r:14}},nmb);
+
+  Plotly.newPlot('c-conv',[{type:'bar',x:['Imp to View','View to Like','View to Comment','Like to Comment'],
+    y:[4.0,2.65,0.11,4.15],marker:{color:[TC[3],TC[0],TC[1],TC[2]],opacity:.88},
+    text:['~4.0% est','2.65% real','0.11% real','4.15% real'],textposition:'outside',textfont:{size:9,color:'#444'}}],
+    {...base,xaxis:{...ax,tickfont:{size:9}},yaxis:{...ax,title:{text:'Rate %',font:{size:10}}},margin:{t:26,b:55,l:52,r:14}},nmb);
+};
+
+lazy.retention=()=>{
+  const wt=[.86*.70,1.70*.55,9.87*.50,21.35*.45,38.97*.40].map(v=>+v.toFixed(1));
+  Plotly.newPlot('c-watch',[
+    {type:'bar',x:LB.b,y:wt,name:'Est. watch (min)',marker:{color:TC[0],opacity:.82},text:wt.map(v=>v+'m'),textposition:'outside'},
+    {type:'scatter',x:LB.b,y:[70,55,50,45,40],name:'Est. retention %',yaxis:'y2',mode:'lines+markers',line:{color:TC[2],width:2},marker:{size:5,color:TC[2]}}
+  ],{...base,xaxis:{...ax,tickfont:{size:10}},yaxis:{...ax,title:{text:'Watch (min)',font:{size:10}}},
+    yaxis2:{overlaying:'y',side:'right',gridcolor:'transparent',zeroline:false,title:{text:'Retention %',font:{size:10}}},
+    legend:{font:{size:9}},margin:{t:8,b:65,l:52,r:58}},nmb);
+
+  Plotly.newPlot('c-cohort',[
+    {type:'scatter',x:['W0','W1','W2','W4','W8','W12','Mo6','Mo12'],y:[100,45,22,12,8,6,4,3],name:'Shorts',line:{color:TC[2],width:2},mode:'lines+markers',marker:{size:5}},
+    {type:'scatter',x:['W0','W1','W2','W4','W8','W12','Mo6','Mo12'],y:[100,62,40,25,15,11,8,6],name:'12 to 30 min',line:{color:TC[0],width:2},mode:'lines+markers',marker:{size:5}},
+    {type:'scatter',x:['W0','W1','W2','W4','W8','W12','Mo6','Mo12'],y:[100,55,38,28,20,16,12,10],name:'30min+',line:{color:TC[4],width:2},mode:'lines+markers',marker:{size:5}}
+  ],{...base,xaxis:{...ax},yaxis:{...ax,title:{text:'% views accumulated',font:{size:10}}},legend:{font:{size:9}},margin:{t:8,b:46,l:58,r:14}},nmb);
+
+  const ages=['0 to 30d','31 to 90d','91 to 180d','181 to 365d','1 to 2yr','2 to 5yr','5yr+'];
+  Plotly.newPlot('c-ageEng',[
+    {type:'bar',x:ages,y:[8,12,10,18,25,19,8],name:'% of views',marker:{color:TC[0],opacity:.2},yaxis:'y2'},
+    {type:'scatter',x:ages,y:[3.1,2.8,2.9,3.2,3.4,3.1,2.6],name:'Avg engagement %',line:{color:TC[1],width:2.5},mode:'lines+markers',marker:{size:7,color:TC[1],line:{color:'#fff',width:2}}}
+  ],{...base,xaxis:{...ax,tickfont:{size:10}},yaxis:{...ax,title:{text:'Engagement %',font:{size:10}}},
+    yaxis2:{overlaying:'y',side:'right',gridcolor:'transparent',zeroline:false,title:{text:'View share %',font:{size:10}}},
+    legend:{font:{size:9}},margin:{t:8,b:46,l:52,r:62}},nmb);
+};
+
+lazy.monetization=()=>{
+  const s=[...T20].sort((a,b)=>a.r-b.r);
+  Plotly.newPlot('c-rev20',[{type:'bar',orientation:'h',
+    y:s.map(d=>d.t.length>30?d.t.substr(0,30)+'...':d.t),x:s.map(d=>d.r),
+    marker:{color:s.map(d=>d.r>100000?TC[1]:TC[0]),opacity:.85},
+    text:s.map(d=>'$'+Math.round(d.r/1000)+'K'),textposition:'outside',textfont:{size:9,color:'#444'}}],
+    {...base,xaxis:{...ax,tickformat:'$,.0f',title:{text:'Est. Revenue ($2.50 RPM)',font:{size:10}}},
+    yaxis:{...ax,tickfont:{size:9}},margin:{t:8,b:46,l:216,r:58}},nmb);
+
+  Plotly.newPlot('c-revFmt',[
+    {type:'bar',x:LB.b,y:LB.r.map(v=>+(v/1e6).toFixed(2)),name:'Total ($M)',marker:{color:TC.slice(0,5),opacity:.88}},
+    {type:'scatter',x:LB.b,y:LB.b.map((_,i)=>+(LB.r[i]/LB.c[i]/1000).toFixed(1)),name:'Avg/video ($K)',
+     yaxis:'y2',mode:'lines+markers',line:{color:'#333',width:1.5,dash:'dot'},marker:{size:6,color:'#333'}}
+  ],{...base,xaxis:{...ax,tickfont:{size:10}},yaxis:{...ax,title:{text:'Total ($M)',font:{size:10}}},
+    yaxis2:{overlaying:'y',side:'right',gridcolor:'transparent',zeroline:false,title:{text:'Avg/video ($K)',font:{size:10}}},
+    legend:{font:{size:9}},margin:{t:8,b:65,l:52,r:58}},nmb);
+
+  const rec=MO.slice(-24);
+  Plotly.newPlot('c-mRev',[{type:'scatter',x:rec.map(d=>d.m),y:rec.map(d=>+(d.v/1e6*2.5).toFixed(1)),
+    fill:'tozeroy',fillcolor:'rgba(78,121,167,.1)',line:{color:TC[0],width:2},mode:'lines'}],
+    {...base,xaxis:{...ax,tickangle:-45,tickfont:{size:8}},yaxis:{...ax,title:{text:'Est. Revenue ($K)',font:{size:10}}},margin:{t:8,b:58,l:58,r:14}},nmb);
+
+  const rpms=[1.5,2.5,4.0,6.0,8.0,10.0];const tv=2654966237;
+  Plotly.newPlot('c-rpm',[{type:'bar',x:rpms.map(r=>'$'+r+' RPM'),y:rpms.map(r=>+(tv/1000*r/1e6).toFixed(1)),
+    marker:{color:rpms.map((_,i)=>TC[i]||TC[4]),opacity:.88},
+    text:rpms.map(r=>'$'+(tv/1000*r/1e6).toFixed(1)+'M'),textposition:'outside',textfont:{size:10,color:'#444'}}],
+    {...base,xaxis:{...ax},yaxis:{...ax,title:{text:'Lifetime Rev ($M)',font:{size:10}}},
+    annotations:[{x:1,y:tv/1000*2.5/1e6+.5,text:'our est.',font:{size:9,color:'#767676'},showarrow:false,xanchor:'center'}],
+    margin:{t:26,b:46,l:62,r:14}},nmb);
+};
+
+lazy.strategy=()=>{
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],slots=['12am','3am','6am','9am','12pm','3pm','6pm','9pm'];
+  const z=[[0,0,5.6,0,0,0,12.2,10.9],[0,0,0,0,33.4,0,0,15.8],[0,0,18.2,14.0,0,21.0,18.9,14.4],
+    [0,4.2,0,0,0,23.8,27.5,22.0],[20.6,0,13.6,0,0,17.4,21.1,9.9],[9.3,0,0,0,18.9,13.9,10.1,24.4],[0,2.9,0,0,0,10.2,0,11.3]];
+  Plotly.newPlot('c-sHeat',[{type:'heatmap',z,x:slots,y:days,
+    colorscale:[[0,'#1B1F2B'],[0.35,'#1F3A6B'],[0.7,'#2563C8'],[1,'#F28E2B']],
+    showscale:true,colorbar:{tickfont:{size:9,color:'rgba(255,255,255,.4)'},len:.85},
+    hovertemplate:'%{y} %{x}<br>Avg: %{z}M views<extra></extra>',zmin:0}],
+    {...bd,xaxis:{...axd,tickfont:{size:9}},yaxis:{...axd,tickfont:{size:9}},margin:{t:8,b:42,l:42,r:62}},nmb);
+
+  Plotly.newPlot('c-sent',[{type:'pie',
+    labels:['Neutral (84.5%)','Positive (12.5%)','Negative (3%)'],values:[169,25,6],hole:.6,
+    marker:{colors:['#D0D0D0',TC[0],TC[2]],line:{color:'#fff',width:2}},
+    textinfo:'label+percent',textfont:{size:10},
+    hovertemplate:'%{label}: %{value}<extra></extra>'}],
+    {...base,annotations:[{text:'200\ncomments',x:.5,y:.5,font:{size:11,color:'#767676',family:'JetBrains Mono'},showarrow:false,align:'center'}],
+    margin:{t:8,b:16,l:16,r:16},legend:{font:{size:10}}},nmb);
+
+  Plotly.newPlot('c-fmt',[{type:'scatter',mode:'markers+text',
+    x:LB.v.map(v=>+(v/1e6).toFixed(1)),y:LB.e,text:LB.b,
+    textposition:['top center','bottom center','bottom right','top center','top center'],
+    textfont:{size:11,color:'#444'},
+    marker:{size:LB.c.map(v=>Math.sqrt(v)*9),color:TC.slice(0,5),opacity:.85,line:{width:2,color:'#fff'}},
+    hovertemplate:'<b>%{text}</b><br>Avg views: %{x}M<br>Engagement: %{y}%<extra></extra>'}],
+    {...base,xaxis:{...ax,title:{text:'Avg views per video (M)',font:{size:11}},zeroline:false},
+    yaxis:{...ax,title:{text:'Avg engagement rate (%)',font:{size:11}},zeroline:false},
+    shapes:[{type:'rect',x0:12,x1:18,y0:3,y1:5,fillcolor:'rgba(78,121,167,.06)',line:{color:'rgba(78,121,167,.3)',dash:'dot'}}],
+    annotations:[{x:15,y:4.85,text:'Ideal zone',font:{size:10,color:TC[0]},showarrow:false}],
+    margin:{t:26,b:58,l:62,r:18}},nmb);
+};
+</script>
+</body>
+</html>
